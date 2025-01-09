@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Patient Information</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/17.0.2/umd/react.development.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/17.0.2/umd/react-dom.development.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/recharts/2.1.9/Recharts.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .container {
+      display: flex;
+      justify-content: space-between;
+      width: 100%;
+      max-width: 1200px;
+      margin-bottom: 20px;
+    }
+    .box {
+      padding: 20px;
+      border: 1px solid #ccc;
+      border-radius: 10px;
+      margin: 10px;
+      width: 45%;
+    }
+    .box img {
+      max-width: 100%;
+      height: auto;
+      border-radius: 10px;
+    }
+    .box h3 {
+      margin-top: 0;
+    }
+    .chart-box {
+      width: 100%;
+      max-width: 600px;
+    }
+    .info-box {
+      width: 100%;
+      max-width: 400px;
+    }
+    .flex-row {
+      display: flex;
+      justify-content: space-between;
+    }
+    .box p {
+      margin: 10px 0;
+    }
+    .box.chart-box {
+      padding: 0; /* Remove padding as it's handled by the React component */
+      background-color: rgb(245, 243, 255); /* Light purple background */
+    }
+    
+    /* You might need to adjust some of your existing box styles */
+    .chart-box {
+      width: 100%;
+      max-width: 800px; /* Increased to accommodate the new design */
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div id="diagnosis-history-root" class="box chart-box">
+      <!-- The React component will be mounted here -->
+    </div>
+
+    <div class="box info-box">
+      <h3>Jessica Taylor</h3>
+      <img id="profile-picture" alt="Profile Picture">
+      <div id="patient-details"></div>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="box">
+      <h3>Respiratory Rate</h3>
+      <p>20 (Normal)</p>
+    </div>
+
+    <div class="box">
+      <h3>Temperature</h3>
+      <p>98.6°F (Normal)</p>
+    </div>
+
+    <div class="box">
+      <h3>Heart Rate</h3>
+      <p>78 (Lower than Average)</p>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="box">
+      <h3>Diagnostic List</h3>
+      <ul id="diagnostic-list"></ul>
+    </div>
+
+    <div class="box">
+      <h3>Lab Results</h3>
+      <ul id="lab-results"></ul>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const patientNameEl = document.getElementById("patient-name");
+      const patientDetailsEl = document.getElementById("patient-details");
+      const profilePicEl = document.getElementById("profile-picture");
+      const diagnosticListEl = document.getElementById("diagnostic-list");
+      const labResultsEl = document.getElementById("lab-results");
+
+      const API_URL = "https://fedskillstest.coalitiontechnologies.workers.dev";
+      const AUTH_HEADER = {
+        "Authorization": "Basic " + btoa("coalition:skills-test")
+      };
+
+      async function fetchPatientData() {
+        try {
+          const response = await fetch(API_URL, {
+            headers: AUTH_HEADER
+          });
+
+          const data = await response.json();
+
+          // Find Jessica Taylor in the response data
+          const jessica = data.find(patient => patient.name === "Jessica Taylor");
+
+          if (jessica) {
+            // Populate basic patient details
+            profilePicEl.src = jessica.profile_picture;
+            patientDetailsEl.innerHTML = `
+              <p>Age: ${jessica.age}</p>
+              <p>Gender: ${jessica.gender}</p>
+              <p>Date of Birth: ${new Date(jessica.date_of_birth).toLocaleDateString()}</p>
+              <p>Phone: ${jessica.phone_number}</p>
+              <p>Emergency Contact: ${jessica.emergency_contact}</p>
+              <p>Insurance: ${jessica.insurance_type}</p>
+            `;
+
+            // Filter the diagnosis history for the last 6 months and extract blood pressure data
+            const sixMonthsAgo = new Date();
+            sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+            const bloodPressureData = jessica.diagnosis_history
+              .filter(entry => new Date(entry.year, new Date().getMonth() - 1).getTime() >= sixMonthsAgo.getTime())
+              .map(entry => ({
+                month: entry.month,
+                systolic: entry.blood_pressure.systolic.value,
+                diastolic: entry.blood_pressure.diastolic.value,
+              }));
+
+            // Render diagnostic list and lab results
+            diagnosticListEl.innerHTML = jessica.diagnostic_list.map(diagnosis => `
+              <li>
+                <strong>${diagnosis.name}</strong>: ${diagnosis.description} (Status: ${diagnosis.status})
+              </li>
+            `).join("");
+
+            labResultsEl.innerHTML = jessica.lab_results.map(lab => `
+              <li>${lab}</li>
+            `).join("");
+          } else {
+            patientDetailsEl.textContent = "Patient not found.";
+          }
+        } catch (error) {
+          console.error("Error fetching data:", error);
+          patientDetailsEl.textContent = "Failed to load data.";
+        }
+      }
+
+
+      fetchPatientData();
+    });
+  </script>
+
+  <script type="module">
+    import DiagnosisHistory from './DiagnosisHistory.js';
+
+    const root = ReactDOM.createRoot(document.getElementById('diagnosis-history-root'));
+    root.render(React.createElement(DiagnosisHistory));
+  </script>
+</body>
+</html>
